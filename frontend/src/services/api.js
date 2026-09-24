@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-// Set up Axios base client connecting directly to the FastAPI server
+// Connect to the deployed FastAPI backend
 const API = axios.create({
-  baseURL: '/api/v1',
+  baseURL: 'https://finrelief-backend.vercel.app/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -12,10 +12,12 @@ const API = axios.create({
 API.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+
     if (token) {
       config.headers = config.headers || {};
       config.headers['Authorization'] = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => {
@@ -27,19 +29,30 @@ API.interceptors.request.use(
 API.interceptors.response.use(
   (response) => {
     // If the response is wrapped in our backend's ApiResponse model, unwrap it
-    if (response.data && response.data.success !== undefined && response.data.data !== undefined) {
+    if (
+      response.data &&
+      response.data.success !== undefined &&
+      response.data.data !== undefined
+    ) {
       return response.data.data;
     }
+
     return response.data;
   },
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
-      // If we are not on login page, redirect to login
-      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register') && window.location.pathname !== '/') {
+
+      // If we are not on login/register page, redirect to login
+      if (
+        !window.location.pathname.includes('/login') &&
+        !window.location.pathname.includes('/register') &&
+        window.location.pathname !== '/'
+      ) {
         window.location.href = '/login';
       }
     }
+
     return Promise.reject(error);
   }
 );
@@ -51,18 +64,22 @@ export const authService = {
       password,
       full_name: fullName,
     });
+
     return response;
   },
-  
+
   login: async (email, password) => {
     const response = await API.post('/auth/login/json', {
       email,
       password,
     });
+
     const token = response?.access_token || response?.data?.access_token;
+
     if (token) {
       localStorage.setItem('token', token);
     }
+
     return response;
   },
 
@@ -73,13 +90,13 @@ export const authService = {
 
   logout: () => {
     localStorage.removeItem('token');
-  }
+  },
 };
 
 export const loanService = {
   list: async () => {
     const response = await API.get('/loans');
-    return response; // Returns LoanListOut: { loans, total }
+    return response;
   },
 
   get: async (id) => {
@@ -99,36 +116,38 @@ export const loanService = {
 
   delete: async (id) => {
     await API.delete(`/loans/${id}`);
-  }
+  },
 };
 
 export const financialService = {
   getHealth: async () => {
     const response = await API.get('/financial/health');
-    return response; // Returns FinancialHealthResponse
+    return response;
   },
 
   calculate: async (monthlyIncome, monthlyExpenses) => {
     const response = await API.post('/financial/calculate', {
       monthly_income: parseFloat(monthlyIncome),
-      monthly_expenses: parseFloat(monthlyExpenses)
+      monthly_expenses: parseFloat(monthlyExpenses),
     });
-    return response; // Returns FinancialHealthResponse
-  }
+
+    return response;
+  },
 };
 
 export const settlementService = {
   predict: async (loanId) => {
     const response = await API.post('/settlement/predict', {
-      loan_id: parseInt(loanId)
+      loan_id: parseInt(loanId),
     });
-    return response; // Returns SettlementPredictionResponse
+
+    return response;
   },
 
   getHistory: async () => {
     const response = await API.get('/settlement/history');
-    return response; // Returns SettlementHistoryListOut: { records, total }
-  }
+    return response;
+  },
 };
 
 export const aiService = {
@@ -140,9 +159,10 @@ export const aiService = {
       loan_type: strategyData.loan_type,
       overdue_months: parseInt(strategyData.overdue_months || 0),
       interest_rate: parseFloat(strategyData.interest_rate || 0.0),
-      lender_name: strategyData.lender_name || ''
+      lender_name: strategyData.lender_name || '',
     });
-    return response; // Returns StrategyResponse: { strategy, is_fallback, model_used }
+
+    return response;
   },
 
   generateLetter: async (letterData) => {
@@ -151,29 +171,40 @@ export const aiService = {
       lender_name: letterData.lender_name,
       loan_type: letterData.loan_type,
       outstanding_amount: parseFloat(letterData.outstanding_amount),
-      proposed_settlement_amount: parseFloat(letterData.proposed_settlement_amount),
+      proposed_settlement_amount: parseFloat(
+        letterData.proposed_settlement_amount
+      ),
       overdue_months: parseInt(letterData.overdue_months || 0),
-      reason: letterData.reason || 'financial hardship'
+      reason: letterData.reason || 'financial hardship',
     });
-    return response; // Returns LetterResponse: { letter, is_fallback, model_used }
+
+    return response;
   },
 
   chat: async (chatData) => {
     const response = await API.post('/ai/chat', {
       message: chatData.message,
-      monthly_income: chatData.monthly_income ? parseFloat(chatData.monthly_income) : null,
-      monthly_expenses: chatData.monthly_expenses ? parseFloat(chatData.monthly_expenses) : null,
-      total_outstanding: chatData.total_outstanding ? parseFloat(chatData.total_outstanding) : null
+      monthly_income: chatData.monthly_income
+        ? parseFloat(chatData.monthly_income)
+        : null,
+      monthly_expenses: chatData.monthly_expenses
+        ? parseFloat(chatData.monthly_expenses)
+        : null,
+      total_outstanding: chatData.total_outstanding
+        ? parseFloat(chatData.total_outstanding)
+        : null,
     });
-    return response; // Returns ChatResponse: { reply, is_fallback, model_used }
+
+    return response;
   },
 
   getHistory: async (skip = 0, limit = 50) => {
     const response = await API.get('/history/ai', {
-      params: { skip, limit }
+      params: { skip, limit },
     });
-    return response; // Returns AIHistoryListOut: { records, total }
-  }
+
+    return response;
+  },
 };
 
 export default API;
